@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#090b16">
+<title>Legend RGB Music Sync</title>
+<style>
+:root{color-scheme:dark;--bg:#090b16;--panel:#14182a;--muted:#aab1c8;--accent:#8b5cf6}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% 0,#24204a 0,var(--bg) 48%);font-family:system-ui,Arial,sans-serif;color:#fff;min-height:100vh;padding:22px}
+main{max-width:520px;margin:auto}.top{text-align:center;margin:12px 0 22px}.logo{font-size:12px;letter-spacing:3px;color:#b9a7ff}.top h1{margin:8px 0;font-size:28px}.top p{margin:0;color:var(--muted);font-size:14px}
+.panel{background:rgba(20,24,42,.94);border:1px solid #303653;border-radius:22px;padding:18px;margin:14px 0;box-shadow:0 12px 40px #0005}
+.visual{height:190px;border-radius:18px;background:#20243a;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;transition:background .08s}
+.orb{width:115px;height:115px;border-radius:50%;background:#8b5cf6;box-shadow:0 0 35px currentColor,0 0 85px currentColor;transition:all .08s}
+.level{height:9px;background:#303653;border-radius:10px;margin-top:15px;overflow:hidden}.bar{height:100%;width:0;background:linear-gradient(90deg,#22d3ee,#a78bfa,#fb7185);border-radius:10px}
+.row{display:flex;gap:10px;flex-wrap:wrap}.btn{border:0;border-radius:14px;padding:13px 16px;font-size:15px;font-weight:700;color:white;background:#6d4aff;flex:1;min-width:120px}.btn.secondary{background:#303653}.btn:disabled{opacity:.45}
+label{display:block;color:var(--muted);font-size:13px;margin:14px 0 7px}select,input[type=range]{width:100%}select{background:#252b43;color:#fff;border:1px solid #3c4566;border-radius:12px;padding:12px;font-size:15px}
+.small{font-size:12px;color:var(--muted);line-height:1.55}.status{font-size:14px;margin-top:12px;color:#c4b5fd;min-height:22px}.warning{border-left:3px solid #fbbf24;padding-left:12px;color:#fce7a5}
+.chips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}.chip{border:1px solid #3a4261;background:#252b43;color:#fff;border-radius:12px;padding:10px 4px;font-size:12px}
+footer{text-align:center;color:#737d9d;font-size:11px;margin:22px 0}
+</style>
+</head>
+<body>
+<main>
+ <header class="top"><div class="logo">LEGEND CHART PRESENTS</div><h1>🌈 RGB Music Sync</h1><p>ফোনের মাইক্রোফোনে গান শুনে রঙের ভিজ্যুয়ালাইজার</p></header>
+ <section class="panel">
+  <div class="visual" id="visual"><div class="orb" id="orb"></div></div>
+  <div class="level"><div class="bar" id="bar"></div></div>
+  <div class="status" id="status">শুরু করতে “মাইক্রোফোন চালু” চাপুন</div>
+  <div class="row" style="margin-top:14px"><button class="btn" id="start">🎤 মাইক্রোফোন চালু</button><button class="btn secondary" id="stop" disabled>বন্ধ করুন</button></div>
+ </section>
+ <section class="panel">
+  <label for="mode">ইফেক্ট মোড</label>
+  <select id="mode"><option value="beat">Beat Pulse</option><option value="rainbow">Rainbow</option><option value="bass">Bass Glow</option><option value="strobe">Flash Beat</option></select>
+  <label for="sensitivity">সেন্সিটিভিটি: <span id="sv">55</span>%</label>
+  <input id="sensitivity" type="range" min="10" max="100" value="55">
+  <div class="chips">
+   <button class="chip" data-color="#ff253a">🔴 লাল</button><button class="chip" data-color="#20ed75">🟢 সবুজ</button><button class="chip" data-color="#287bff">🔵 নীল</button><button class="chip" data-color="#ffffff">⚪ সাদা</button>
+  </div>
+ </section>
+ <section class="panel">
+  <p class="warning small"><b>গুরুত্বপূর্ণ সীমাবদ্ধতা:</b> এই প্রথম সংস্করণ ফোনের মাইক্রোফোন দিয়ে গান শনাক্ত করে স্ক্রিনে রঙ ও ইফেক্ট দেখায়। সাধারণ HTML ওয়েবপেজ Redmi Note 12-এর IR Blaster-এ সরাসরি সিগন্যাল পাঠাতে পারে না, তাই আপাতত এটি তোমার আসল LED-কে নিয়ন্ত্রণ করবে না। LED নিয়ন্ত্রণের জন্য আলাদা Android bridge/app দরকার।</p>
+  <p class="small">ভালো ফলের জন্য Chrome-এ খুলে Microphone permission দিন। গান অন্য স্পিকার থেকে বাজান; একই ফোনে গান চালালে ব্রাউজার/অডিও রাউটিংয়ের কারণে মাইক্রোফোনে ধরা নাও পড়তে পারে।</p>
+ </section>
+ <footer>LEGEND RGB MUSIC SYNC · প্রথম Web Prototype</footer>
+</main>
+<script>
+let ctx, analyser, stream, raf, hue=0, manualColor=null, lastPulse=0;
+const $=id=>document.getElementById(id);
+const start=$('start'),stop=$('stop'),bar=$('bar'),orb=$('orb'),visual=$('visual'),status=$('status');
+$('sensitivity').addEventListener('input',e=>$('sv').textContent=e.target.value);
+document.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{manualColor=b.dataset.color;orb.style.background=manualColor;orb.style.color=manualColor;visual.style.background=manualColor+'33'}));
+start.addEventListener('click',async()=>{
+ try{
+  stream=await navigator.mediaDevices.getUserMedia({audio:true});
+  ctx=new (window.AudioContext||window.webkitAudioContext)();
+  const source=ctx.createMediaStreamSource(stream);analyser=ctx.createAnalyser();analyser.fftSize=1024;analyser.smoothingTimeConstant=.72;source.connect(analyser);
+  start.disabled=true;stop.disabled=false;status.textContent='মাইক্রোফোন চালু — গান বাজান 🎶';manualColor=null;draw();
+ }catch(e){status.textContent='মাইক্রোফোন চালু হয়নি। Chrome permission Allow করুন।';}
+});
+stop.addEventListener('click',()=>{
+ cancelAnimationFrame(raf);if(stream)stream.getTracks().forEach(t=>t.stop());if(ctx)ctx.close();
+ start.disabled=false;stop.disabled=true;bar.style.width='0%';status.textContent='বন্ধ করা হয়েছে';
+});
+function draw(){
+ const data=new Uint8Array(analyser.frequencyBinCount);analyser.getByteFrequencyData(data);
+ let sum=0;for(let i=0;i<data.length;i++)sum+=data[i];const energy=sum/data.length/255;
+ const bass=data.slice(0,Math.max(1,Math.floor(data.length*.12)));let low=0;for(let v of bass)low+=v;low=low/bass.length/255;
+ const sens=Number($('sensitivity').value)/100;const power=Math.min(1,energy*(1.4+sens*2.4));bar.style.width=(power*100)+'%';
+ const mode=$('mode').value;let color;
+ hue=(hue+1.2+power*5)%360;color=`hsl(${hue},100%,${48+power*22}%)`;
+ if(mode==='bass')color=`hsl(${Math.max(0,220-low*220)},100%,${40+low*35}%)`;
+ if(mode==='beat'){const pulse=power>sens*.42;orb.style.transform=`scale(${pulse?1+power*.55:1})`; }
+ if(mode==='rainbow')orb.style.transform=`rotate(${hue}deg) scale(${1+power*.25})`;
+ if(mode==='strobe'){if(power>sens*.6 && performance.now()-lastPulse>130){lastPulse=performance.now();color='#ffffff'} }
+ if(manualColor)color=manualColor;
+ orb.style.background=color;orb.style.color=color;orb.style.boxShadow=`0 0 ${25+power*45}px ${color},0 0 ${55+power*70}px ${color}`;
+ visual.style.background=`color-mix(in srgb, ${color} ${12+power*28}%, #171b30)`;
+ status.textContent=`সাউন্ড লেভেল: ${Math.round(power*100)}% · ${mode.toUpperCase()}`;
+ raf=requestAnimationFrame(draw);
+}
+</script>
+</body>
+</html>
